@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Go Board Background</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #f5deb3; /* Wheat color for traditional Go board */
+      width: 100vw;
+      height: 100vh;
+    }
+
+    .container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    /* Go board grid */
+    .go-board {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 80vmin;
+      height: 80vmin;
+      background-color: #e6c88e; /* Traditional Go board color */
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.3);
+      z-index: 1;
+    }
+
+    .grid-lines {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+    }
+
+    /* Falling stones */
+    .stone {
+      position: absolute;
+      border-radius: 50%;
+      z-index: 3;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+      opacity: 0.8;
+    }
+
+    .black-stone {
+      background: radial-gradient(circle at 30% 30%, #444, #000);
+    }
+
+    .white-stone {
+      background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="go-board">
+      <canvas id="gridCanvas" class="grid-lines"></canvas>
+    </div>
+    <div id="stones-container"></div>
+  </div>
+
+  <script>
+    // Draw the Go board grid
+    function drawGoBoard() {
+      const canvas = document.getElementById('gridCanvas');
+      const board = document.querySelector('.go-board');
+      const boardSize = Math.min(board.offsetWidth, board.offsetHeight);
+      
+      canvas.width = boardSize;
+      canvas.height = boardSize;
+      
+      const ctx = canvas.getContext('2d');
+      const lines = 19; // Standard 19x19 Go board
+      const margin = boardSize * 0.05;
+      const cellSize = (boardSize - 2 * margin) / (lines - 1);
+      
+      // Draw grid lines
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1;
+      
+      // Draw horizontal lines
+      for (let i = 0; i < lines; i++) {
+        const y = margin + i * cellSize;
+        ctx.beginPath();
+        ctx.moveTo(margin, y);
+        ctx.lineTo(boardSize - margin, y);
+        ctx.stroke();
+      }
+      
+      // Draw vertical lines
+      for (let i = 0; i < lines; i++) {
+        const x = margin + i * cellSize;
+        ctx.beginPath();
+        ctx.moveTo(x, margin);
+        ctx.lineTo(x, boardSize - margin);
+        ctx.stroke();
+      }
+      
+      // Draw star points (hoshi)
+      const starPoints = [
+        {x: 3, y: 3}, {x: 9, y: 3}, {x: 15, y: 3},
+        {x: 3, y: 9}, {x: 9, y: 9}, {x: 15, y: 9},
+        {x: 3, y: 15}, {x: 9, y: 15}, {x: 15, y: 15}
+      ];
+      
+      ctx.fillStyle = '#000';
+      starPoints.forEach(point => {
+        const x = margin + point.x * cellSize;
+        const y = margin + point.y * cellSize;
+        ctx.beginPath();
+        ctx.arc(x, y, cellSize / 10, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      
+      // Return board dimensions for stone positioning
+      return {
+        x: board.getBoundingClientRect().left,
+        y: board.getBoundingClientRect().top,
+        width: boardSize,
+        height: boardSize
+      };
+    }
+    
+    // Create and animate falling stones
+    function createFallingStones(boardInfo) {
+      const container = document.getElementById('stones-container');
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      const stoneCount = 30; // Number of stones
+      
+      // Create stones
+      for (let i = 0; i < stoneCount; i++) {
+        createStone(container, windowWidth, windowHeight, boardInfo);
+      }
+    }
+    
+    function createStone(container, windowWidth, windowHeight, boardInfo) {
+      const stone = document.createElement('div');
+      const isBlack = Math.random() > 0.5;
+      
+      // Random size between 20 and 50 pixels
+      const size = Math.random() * 30 + 20;
+      
+      stone.className = `stone ${isBlack ? 'black-stone' : 'white-stone'}`;
+      stone.style.width = `${size}px`;
+      stone.style.height = `${size}px`;
+      
+      // Calculate the area around the board for stones to fall
+      const boardPadding = boardInfo.width * 0.2; // 20% padding around the board
+      const minX = Math.max(0, boardInfo.x - boardPadding);
+      const maxX = Math.min(windowWidth, boardInfo.x + boardInfo.width + boardPadding);
+      
+      // Random starting position concentrated around the board
+      const startX = minX + Math.random() * (maxX - minX);
+      const startY = -100; // Start above the viewport
+      
+      // Random falling speed (slower than before)
+      const fallSpeed = Math.random() * 1.5 + 0.5;
+      
+      // Random rotation speed (slower than before)
+      const rotationSpeed = (Math.random() * 1 - 0.5) * 0.5;
+      
+      // Random horizontal drift (reduced)
+      const driftSpeed = (Math.random() * 1 - 0.5) * 0.3;
+      
+      // Set initial position
+      stone.style.left = `${startX}px`;
+      stone.style.top = `${startY}px`;
+      
+      container.appendChild(stone);
+      
+      // Animation variables
+      let posY = startY;
+      let posX = startX;
+      let rotation = Math.random() * 360;
+      
+      function animateStone() {
+        // Update position
+        posY += fallSpeed;
+        posX += driftSpeed;
+        rotation += rotationSpeed;
+        
+        // Apply new position and rotation
+        stone.style.top = `${posY}px`;
+        stone.style.left = `${posX}px`;
+        stone.style.transform = `rotate(${rotation}deg)`;
+        
+        // Check if stone is out of viewport
+        if (posY > windowHeight + 100) {
+          // Reset stone
+          posY = -100;
+          posX = minX + Math.random() * (maxX - minX); // Keep within board area
+          container.appendChild(stone); // Move to end of container for layering
+        }
+        
+        requestAnimationFrame(animateStone);
+      }
+      
+      // Start animation
+      animateStone();
+    }
+    
+    // Initialize
+    window.addEventListener('load', () => {
+      const boardInfo = drawGoBoard();
+      createFallingStones(boardInfo);
+      
+      // Redraw board and reposition stones on resize
+      window.addEventListener('resize', () => {
+        const boardInfo = drawGoBoard();
+        // No need to recreate stones, they'll adjust on next cycle
+      });
+    });
+  </script>
+</body>
+</html> 

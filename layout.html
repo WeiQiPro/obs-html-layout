@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OBS Go Game Layout</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: transparent;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+    }
+
+    .container {
+      width: 100%;
+      height: 100%;
+      max-width: 1920px;
+      max-height: 1080px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    .players-container {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .players-card {
+      position: relative;
+      width: 100%;
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    .players-card .left-polygon,
+    .players-card .right-polygon {
+      position: absolute;
+      height: 100%;
+      top: 0;
+      z-index: 1;
+    }
+
+    .players-card .left-polygon {
+      width: 60%;
+      left: 0;
+      background-color: rgba(59, 130, 246, 0.8);
+      clip-path: polygon(0 0, 100% 0, 80% 100%, 0 100%);
+      border-radius: 10px 0 0 10px;
+    }
+
+    .players-card .right-polygon {
+      width: 60%;
+      right: 0;
+      background-color: rgba(59, 130, 246, 0.6);
+      clip-path: polygon(20% 0, 100% 0, 100% 100%, 0 100%);
+      border-radius: 0 10px 10px 0;
+    }
+
+    .player-name {
+      position: relative;
+      z-index: 2;
+      font-weight: bold;
+      font-size: 1.5rem;
+      text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding: 0 20px;
+      box-sizing: border-box;
+      max-width: 50%;
+    }
+
+    .player-left {
+      color: black;
+      text-align: left;
+    }
+
+    .player-right {
+      color: white;
+      text-align: right;
+    }
+
+    .board-container {
+      width: min(80vh, 80vw, 800px);
+      height: min(80vh, 80vw, 800px);
+      background-color: rgba(245, 222, 179, 0.7);
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Responsive adjustments */
+    @media (max-height: 900px) {
+      .players-card {
+        height: 60px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="players-container">
+      <div id="playersCard" class="players-card">
+        <div class="left-polygon"></div>
+        <div class="right-polygon"></div>
+        <div id="playerLeft" class="player-name player-left">Jeremiah Donley 5d</div>
+        <div id="playerRight" class="player-name player-right">Michael Chen 1p</div>
+      </div>
+    </div>
+    
+    <div id="boardContainer" class="board-container">
+      <!-- This is a placeholder for the Go board that OBS will overlay -->
+    </div>
+  </div>
+
+  <script>
+    // Function to adjust the players card width to match the board
+    function adjustLayout() {
+      const boardContainer = document.getElementById('boardContainer');
+      const playersCard = document.getElementById('playersCard');
+      const playerLeft = document.getElementById('playerLeft');
+      const playerRight = document.getElementById('playerRight');
+      
+      // Set players card width to match board width
+      const boardWidth = boardContainer.offsetWidth;
+      playersCard.style.width = boardWidth + 'px';
+      
+      // Calculate available width for each player name
+      // Half the board width minus padding minus 25px (half of the 50px center space)
+      const centerSpacing = 50; // 50px space in the center
+      const availableWidth = (boardWidth / 2) - 40 - (centerSpacing / 2);
+      
+      // Get player names
+      const playerLeftText = playerLeft.textContent;
+      const playerRightText = playerRight.textContent;
+      
+      // Find optimal font size for each player independently
+      const leftFontSize = findOptimalFontSize(playerLeftText, availableWidth);
+      const rightFontSize = findOptimalFontSize(playerRightText, availableWidth);
+      
+      // Apply the calculated font sizes independently to each player
+      playerLeft.style.fontSize = leftFontSize + 'rem';
+      playerRight.style.fontSize = rightFontSize + 'rem';
+      
+      // Adjust the player name positioning to account for center spacing
+      playerLeft.style.marginRight = (centerSpacing / 2) + 'px';
+      playerRight.style.marginLeft = (centerSpacing / 2) + 'px';
+    }
+    
+    // Function to find the optimal font size for a given text and width
+    function findOptimalFontSize(text, maxWidth) {
+      // Create a temporary span to measure text width
+      const tempSpan = document.createElement('span');
+      tempSpan.style.visibility = 'hidden';
+      tempSpan.style.position = 'absolute';
+      tempSpan.style.fontFamily = 'Arial, sans-serif';
+      tempSpan.style.fontWeight = 'bold';
+      tempSpan.textContent = text;
+      document.body.appendChild(tempSpan);
+      
+      // Define font size range
+      const maxFontSize = 3;  // Start with a large size
+      const minFontSize = 0.8; // Minimum readable size
+      const step = 0.05;      // Size decrement (smaller for more precision)
+      
+      // Binary search for optimal font size
+      let low = minFontSize;
+      let high = maxFontSize;
+      let optimal = minFontSize;
+      
+      while (high - low > step / 2) {
+        const mid = (low + high) / 2;
+        tempSpan.style.fontSize = mid + 'rem';
+        
+        if (tempSpan.offsetWidth <= maxWidth) {
+          // This size fits, try a larger one
+          optimal = mid;
+          low = mid;
+        } else {
+          // Too big, try a smaller size
+          high = mid;
+        }
+      }
+      
+      // Clean up
+      document.body.removeChild(tempSpan);
+      
+      return optimal;
+    }
+    
+    // Run on load and resize
+    window.addEventListener('load', adjustLayout);
+    window.addEventListener('resize', adjustLayout);
+  </script>
+</body>
+</html>

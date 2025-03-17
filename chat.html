@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Twitch Chat with Go Stones</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Arial', sans-serif;
+      background-color: rgba(30, 30, 35, 0.8);
+      color: white;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+      backdrop-filter: blur(5px);
+      -webkit-backdrop-filter: blur(5px);
+    }
+
+    #chat-container {
+      width: 100%;
+      height: 100%;
+      overflow-y: auto;
+      padding: 15px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column-reverse;
+    }
+
+    .chat-message {
+      margin-bottom: 15px;
+      padding: 12px 15px;
+      border-radius: 8px;
+      background-color: rgba(40, 40, 45, 0.7);
+      animation: fadeIn 0.3s ease-in;
+      display: flex;
+      align-items: center;
+      font-size: 28px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .stone {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      margin-right: 15px;
+      flex-shrink: 0;
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    .black-stone {
+      background: radial-gradient(circle at 30% 30%, #444, #000);
+    }
+
+    .white-stone {
+      background: radial-gradient(circle at 30% 30%, #fff, #ddd);
+    }
+
+    .username {
+      font-weight: bold;
+      margin-right: 12px;
+      font-size: 30px;
+    }
+
+    .message-text {
+      word-break: break-word;
+      font-size: 28px;
+      line-height: 1.3;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Custom scrollbar */
+    #chat-container::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #chat-container::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    #chat-container::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 3px;
+    }
+
+    #chat-container::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <div id="chat-container"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/comfy.js@latest/dist/comfy.min.js"></script>
+  <script>
+    // Chat container reference
+    const chatContainer = document.getElementById('chat-container');
+    
+    // Map to store username to stone type mapping
+    const userStoneMap = new Map();
+    
+    // Function to determine if a user gets a black or white stone
+    function getStoneType(username) {
+      if (userStoneMap.has(username)) {
+        return userStoneMap.get(username);
+      }
+      
+      // Assign a stone type based on username hash
+      // This ensures the same user always gets the same stone
+      let hash = 0;
+      for (let i = 0; i < username.length; i++) {
+        hash = ((hash << 5) - hash) + username.charCodeAt(i);
+        hash |= 0; // Convert to 32bit integer
+      }
+      
+      const stoneType = hash % 2 === 0 ? 'black' : 'white';
+      userStoneMap.set(username, stoneType);
+      return stoneType;
+    }
+    
+    // Function to create a chat message element
+    function createChatMessage(user, message, stoneType) {
+      const messageElement = document.createElement('div');
+      messageElement.className = 'chat-message';
+      
+      const stoneElement = document.createElement('div');
+      stoneElement.className = `stone ${stoneType}-stone`;
+      
+      const usernameElement = document.createElement('span');
+      usernameElement.className = 'username';
+      usernameElement.textContent = user;
+      usernameElement.style.color = stoneType === 'black' ? '#aaa' : '#fff';
+      
+      const messageTextElement = document.createElement('span');
+      messageTextElement.className = 'message-text';
+      messageTextElement.textContent = message;
+      
+      messageElement.appendChild(stoneElement);
+      messageElement.appendChild(usernameElement);
+      messageElement.appendChild(messageTextElement);
+      
+      return messageElement;
+    }
+    
+    // Function to add a message to the chat container
+    function addMessage(user, message) {
+      const stoneType = getStoneType(user);
+      const messageElement = createChatMessage(user, message, stoneType);
+      
+      // Add to the beginning of the container (newest at top)
+      chatContainer.prepend(messageElement);
+      
+      // Limit the number of messages to prevent performance issues
+      while (chatContainer.children.length > 100) {
+        chatContainer.removeChild(chatContainer.lastChild);
+      }
+    }
+    
+    // Initialize ComfyJS for Twitch chat
+    ComfyJS.onChat = (user, message, flags, self, extra) => {
+      addMessage(user, message);
+    };
+    
+    ComfyJS.onCommand = (user, command, message, flags, extra) => {
+      // Handle commands if needed
+    };
+    
+    // Connect to the specified channel
+    ComfyJS.Init("tangjie");
+    
+    // Add some initial messages for testing
+    setTimeout(() => {
+      addMessage("System", "Welcome to the Go game chat! Messages will appear here.");
+    }, 1000);
+
+  </script>
+</body>
+</html> 
